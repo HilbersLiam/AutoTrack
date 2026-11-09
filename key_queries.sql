@@ -17,21 +17,24 @@ WHERE m.IsArchived = FALSE;
 -- QUERY 2: Retrieve unresolved issues
 -- Purpose: Display issues requiring attention.
 
-SELECT IssueID, MachineID, Description, Priority, IssueStatus, ReportedAt
-FROM IssueReport
-WHERE IssueStatus IN ('Open', 'In Progress')
-ORDER BY ReportedAt ASC;
+SELECT ir.IssueID, ir.MachineID, m.MachineName, ir.Description, ir.Priority, ir.IssueStatus, ir.ReportedAt
+FROM IssueReport ir
+JOIN Machine m
+    ON ir.MachineID = m.MachineID
+
+WHERE ir.IssueStatus IN ('Open', 'In Progress')
+ORDER BY ir.ReportedAt ASC;
 
 -- QUERY 3: Retrieve machines history
 -- Purpose: Display a machines history
 
 SELECT mt.TaskID, m.MachineName, mt.TaskDescription, mt.TaskStatus, ua.FullName AS AssignedTechnician, mt.CreatedAt, mt.CompletedAt, mt.WorkPerformed
-FROM MaintenanceTask m
+FROM MaintenanceTask mt
 JOIN Machine m
     ON mt.MachineID = m.MachineID
 LEFT JOIN UserAccount ua 
     ON mt.AssignedTechnicianID = ua.UserID
-WHERE mt.MachineID = 7
+
 ORDER BY mt.CreatedAt DESC;
 
 -- QUERY 4: Retrieve user accounts

@@ -13,7 +13,7 @@ CREATE TABLE `UserAccount` (
     `IsActive` tinyint(1) DEFAULT '1',
     PRIMARY KEY (`UserID`),
     UNIQUE KEY `Email` (`Email`)
-)
+);
 
 CREATE TABLE `ProductionArea` (
     `AreaID` int NOT NULL AUTO_INCREMENT,
@@ -21,7 +21,7 @@ CREATE TABLE `ProductionArea` (
     `Description` text NOT NULL,
     PRIMARY KEY (`AreaID`),
     UNIQUE KEY `AreaName` (`AreaName`)
-)
+);
 
 CREATE TABLE `MachineSystem` (
     `SystemID` int NOT NULL AUTO_INCREMENT,
@@ -31,7 +31,7 @@ CREATE TABLE `MachineSystem` (
     PRIMARY KEY (`SystemID`),
     UNIQUE KEY `UQ_Area_SystemName` (`AreaID`,`SystemName`),
     CONSTRAINT `FK_MachineSystem_Area` FOREIGN KEY (`AreaID`) REFERENCES `ProductionArea` (`AreaID`)
-) 
+);
 
 CREATE TABLE `Machine` (
     `MachineID` int NOT NULL AUTO_INCREMENT,
@@ -43,7 +43,7 @@ CREATE TABLE `Machine` (
     PRIMARY KEY (`MachineID`),
     KEY `FK_Machine_System` (`SystemID`),
     CONSTRAINT `FK_Machine_System` FOREIGN KEY (`SystemID`) REFERENCES `MachineSystem` (`SystemID`)
-) 
+);
 
 CREATE TABLE `MachineStatusHistory` (
     `StatusHistoryID` int NOT NULL AUTO_INCREMENT,
@@ -56,7 +56,7 @@ CREATE TABLE `MachineStatusHistory` (
     KEY `FK_StatusHistory_User` (`ChangedByUserID`),
     CONSTRAINT `FK_StatusHistory_Machine` FOREIGN KEY (`MachineID`) REFERENCES `Machine` (`MachineID`),
     CONSTRAINT `FK_StatusHistory_User` FOREIGN KEY (`ChangedByUserID`) REFERENCES `UserAccount` (`UserID`)
-)
+);
 
 CREATE TABLE `IssueReport` (
     `IssueID` int NOT NULL AUTO_INCREMENT,
@@ -73,7 +73,7 @@ CREATE TABLE `IssueReport` (
     CONSTRAINT `FK_Issue_Machine` FOREIGN KEY (`MachineID`) REFERENCES `Machine` (`MachineID`),
     CONSTRAINT `FK_Issue_User` FOREIGN KEY (`ReportedByUserID`) REFERENCES `UserAccount` (`UserID`),
     CONSTRAINT `CHK_Issue_ResolvedAt` CHECK (((`ResolvedAt` is null) or (`ResolvedAt` >= `ReportedAt`)))
-    )
+    );
 
 CREATE TABLE `MaintenanceTask` (
     `TaskID` int NOT NULL AUTO_INCREMENT,
@@ -101,7 +101,7 @@ CREATE TABLE `MaintenanceTask` (
     CONSTRAINT `FK_Task_Machine` FOREIGN KEY (`MachineID`) REFERENCES `Machine` (`MachineID`),
     CONSTRAINT `FK_Task_Technician` FOREIGN KEY (`AssignedTechnicianID`) REFERENCES `UserAccount` (`UserID`),
     CONSTRAINT `CHK_Task_CompletedAt` CHECK (((`CompletedAt` is null) or (`CompletedAt` >= `CreatedAt`)))
-)
+);
 
 CREATE TABLE `Part`(
     `PartID` int NOT NULL AUTO_INCREMENT,
@@ -110,7 +110,7 @@ CREATE TABLE `Part`(
     `Description` text NOT NULL,
     PRIMARY KEY (`PartID`),
     UNIQUE KEY `PartNumber` (`PartNumber`)
-)
+);
 
 CREATE TABLE `MaintenanceTaskPart` (
     `TaskID` int NOT NULL,
@@ -121,4 +121,4 @@ CREATE TABLE `MaintenanceTaskPart` (
     CONSTRAINT `FK_TaskPart_Part` FOREIGN KEY (`PartID`) REFERENCES `Part` (`PartID`),
     CONSTRAINT `FK_TaskPart_Task` FOREIGN KEY (`TaskID`) REFERENCES `MaintenanceTask` (`TaskID`),
     CONSTRAINT `CHK_QuantityUsed` CHECK ((`QuantityUsed` > 0))
-) 
+); 
