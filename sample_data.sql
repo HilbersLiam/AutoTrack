@@ -44,7 +44,11 @@ INSERT INTO `MachineStatusHistory` (`StatusHistoryID`, `MachineID`, `ChangedByUs
     (11,7,6,'Operational','2026-11-01 13:00:00'),
     (12,8,5,'Down','2026-11-04 08:00:00'),
     (13,9,6,'Under Maintenance','2026-11-04 10:00:00'),
-    (14,10,5,'Operational','2026-11-04 06:00:00');
+    (14,10,5,'Operational','2026-11-04 06:00:00'),
+    (15,8,5,'Operational','2026-10-30 06:00:00'),
+    (16,9,5,'Operational','2026-10-30 06:00:00'),
+    (17,11,5,'Operational','2026-10-30 06:00:00'),
+    (18,12,5,'Operational','2026-10-30 06:00:00');
 
 
 INSERT INTO `IssueReport` (`IssueID`, `MachineID`, `ReportedByUserID`, `Description`, `Priority`, `IssueStatus`, `ReportedAt`, `ResolvedAt`) VALUES
