@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "dlMRLKlFx2A=",
+  "success": true,
+  "projectFilePath": "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack.Api/AutoTrack.Api.csproj",
+  "expectedPackageFiles": [
+    "/home/liamhilbers/.nuget/packages/microsoft.aspnetcore.openapi/10.0.13/microsoft.aspnetcore.openapi.10.0.13.nupkg.sha512",
+    "/home/liamhilbers/.nuget/packages/microsoft.openapi/2.12.2/microsoft.openapi.2.12.2.nupkg.sha512"
+  ],
+  "logs": []
+}
