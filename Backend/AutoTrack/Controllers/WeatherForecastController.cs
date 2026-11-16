@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace AutoTrack.Api.Controllers;
+namespace AutoTrack.Controllers;
 
 [ApiController]
 [Route("[controller]")]

@@ -1,4 +1,4 @@
-namespace AutoTrack.Api;
+namespace AutoTrack;
 
 public class WeatherForecast
 {

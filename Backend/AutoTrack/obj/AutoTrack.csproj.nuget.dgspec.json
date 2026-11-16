@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack.Api/AutoTrack.Api.csproj": {}
+    "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack/AutoTrack.csproj": {}
   },
   "projects": {
-    "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack.Api/AutoTrack.Api.csproj": {
+    "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack/AutoTrack.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack.Api/AutoTrack.Api.csproj",
-        "projectName": "AutoTrack.Api",
-        "projectPath": "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack.Api/AutoTrack.Api.csproj",
+        "projectUniqueName": "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack/AutoTrack.csproj",
+        "projectName": "AutoTrack",
+        "projectPath": "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack/AutoTrack.csproj",
         "packagesPath": "/home/liamhilbers/.nuget/packages/",
-        "outputPath": "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack.Api/obj/",
+        "outputPath": "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/liamhilbers/.nuget/NuGet/NuGet.Config"
@@ -45,6 +45,10 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "dependencies": {
+            "Dapper": {
+              "target": "Package",
+              "version": "[2.1.89, )"
+            },
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
               "version": "[10.0.13, )"
