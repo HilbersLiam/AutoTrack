@@ -1,3 +1,4 @@
+
 import './App.css'
 import IssuesPage from './IssuesPage'
 import MaintenancePage from './MaintenancePage'
@@ -5,53 +6,205 @@ import ReportsPage from './ReportsPage'
 import AdministrationPage from './AdministrationPage'
 import { useEffect, useRef, useState } from 'react'
 
-import { activeMachines, linkedMachines, reportCounts, localDay } from './frontendData'
+import {
+  activeMachines,
+  linkedMachines,
+  reportCounts,
+  localDay
+} from './frontendData'
+
 import type { loadDemo } from './frontendData'
-import type { ChangeData, MachineStatus } from './models'
+
+import type {
+  ChangeData,
+  MachineStatus,
+  ProductionAreaMachineDto
+} from './models'
+
 import { MachineBadge, MachineOptions, Options } from './EquipmentUi'
 import { isOption, machineStatuses } from './models'
+
+// Change this if your API uses a different URL or port.
+const PRODUCTION_AREAS_API_URL =
+  'http://localhost:5091/api/ProductionArea'
+
+// Structure used to group machines under their production areas.
+type GroupedProductionArea = {
+  id: number
+  name: string
+  machines: {
+    id: number
+    name: string
+    status: string | null
+  }[]
+}
 
 function App({ store }: { store: ReturnType<typeof loadDemo> }) {
   const [activePage, setActivePage] = useState('Overview')
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+
+  // Existing demo data used by the other dashboard pages.
   const [data, setData] = useState(store.data)
-  const [saveError, setSaveError] = useState(store.initialSaveFailed ? 'Demo data could not be saved in this browser.' : '')
+  const [saveError, setSaveError] = useState(
+    store.initialSaveFailed
+      ? 'Demo data could not be saved in this browser.'
+      : ''
+  )
+
+  // Live production area data retrieved from the C# API.
+  const [productionAreas, setProductionAreas] =
+    useState<ProductionAreaMachineDto[]>([])
+
+  const [productionAreasLoading, setProductionAreasLoading] =
+    useState(true)
+
+  const [productionAreasError, setProductionAreasError] =
+    useState<string | null>(null)
+
   const [today, setToday] = useState(localDay)
+
   useEffect(() => {
-    const interval = window.setInterval(() => setToday(localDay()), 30_000)
+    const interval = window.setInterval(
+      () => setToday(localDay()),
+      30_000
+    )
+
     return () => window.clearInterval(interval)
   }, [])
-  const [selectedMachineId, setSelectedMachineId] = useState<number | null>(null)
+
+  // Retrieve production areas from the ASP.NET Core API.
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const fetchProductionAreas = async () => {
+      try {
+        const response = await fetch(
+          PRODUCTION_AREAS_API_URL,
+          { signal: controller.signal }
+        )
+
+        if (!response.ok) {
+          throw new Error(
+            `HTTP Error: ${response.status} ${response.statusText}`
+          )
+        }
+
+        const result: ProductionAreaMachineDto[] =
+          await response.json()
+
+        setProductionAreas(result)
+
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setProductionAreasError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to retrieve production areas.'
+        )
+
+      } finally {
+        if (!controller.signal.aborted) {
+          setProductionAreasLoading(false)
+        }
+      }
+    }
+
+    fetchProductionAreas()
+
+    return () => controller.abort()
+  }, [])
+
+  const [selectedMachineId, setSelectedMachineId] =
+    useState<number | null>(null)
+
   const machineDetailsRef = useRef<HTMLDivElement>(null)
+
   const allMachines = linkedMachines(data)
   const machines = activeMachines(allMachines)
-  const selectedMachine = machines.find((machine) => machine.id === selectedMachineId)
+
+  const selectedMachine = machines.find(
+    (machine) => machine.id === selectedMachineId
+  )
+
   const counts = reportCounts(data, today)
+
+  // Group the flat API response into production areas.
+  const groupedAreas = Array.from(
+    productionAreas.reduce((groups, row) => {
+      let area = groups.get(row.areaID)
+
+      // Create the production area if it doesn't exist yet.
+      if (!area) {
+        area = {
+          id: row.areaID,
+          name: row.areaName,
+          machines: []
+        }
+
+        groups.set(row.areaID, area)
+      }
+
+      // Add the machine if this production area has one.
+      if (
+        row.machineID !== null &&
+        row.machineName !== null
+      ) {
+        area.machines.push({
+          id: row.machineID,
+          name: row.machineName,
+          status: row.currentStatus
+        })
+      }
+
+      return groups
+
+    }, new Map<number, GroupedProductionArea>())
+      .values()
+  )
 
   const changeData: ChangeData = (update) => {
     const next = update(data)
+
     if (!store.save(next)) {
-      setSaveError('Change could not be saved. Check browser storage or reload if another tab updated the demo.')
+      setSaveError(
+        'Change could not be saved. Check browser storage or reload if another tab updated the demo.'
+      )
+
       return false
     }
+
     setData(next)
     setSaveError('')
     return true
   }
 
-  function updateMachineStatus(machineId: number, status: MachineStatus) {
+  function updateMachineStatus(
+    machineId: number,
+    status: MachineStatus
+  ) {
     changeData((current) => ({
       ...current,
       machines: current.machines.map((machine) =>
-        machine.id === machineId ? { ...machine, status } : machine
-      ),
+        machine.id === machineId
+          ? { ...machine, status }
+          : machine
+      )
     }))
   }
 
   const filteredMachines = machines.filter((machine) => {
-    const matchesSearch = [machine.name, machine.areaName, machine.systemName, machine.location]
-      .some((value) => value.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+    const matchesSearch = [
+      machine.name,
+      machine.areaName,
+      machine.systemName,
+      machine.location
+    ].some((value) =>
+      value.toLowerCase().includes(searchTerm.trim().toLowerCase())
+    )
 
     const matchesStatus =
       statusFilter === 'All' || machine.status === statusFilter
@@ -65,7 +218,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
     'Issues',
     'Maintenance',
     'Reports',
-    'Administration',
+    'Administration'
   ]
 
   return (
@@ -91,6 +244,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
 
         <div className="user-profile">
           <div className="avatar">OW</div>
+
           <div>
             <strong>Omar Waled</strong>
             <small>Demo user</small>
@@ -101,54 +255,114 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
       <main className="main-content">
         <header className="page-header">
           <div>
-            <span className="demo-label">Demo data</span>
+            <span className="demo-label">
+              Production areas: live API | Other sections: demo data
+            </span>
 
             <h2>
-              {activePage === 'Overview' ? 'Plant overview' : activePage}
+              {activePage === 'Overview'
+                ? 'Plant overview'
+                : activePage}
             </h2>
 
-            {activePage === 'Overview' && <p>Equipment health across your production areas.</p>}
+            {activePage === 'Overview' && (
+              <p>Equipment health across your production areas.</p>
+            )}
           </div>
-          {store.warning && <p className="storage-warning" role="status">{store.warning}</p>}
-          {saveError && <p className="storage-warning" role="alert">{saveError}</p>}
+
+          {store.warning && (
+            <p className="storage-warning" role="status">
+              {store.warning}
+            </p>
+          )}
+
+          {saveError && (
+            <p className="storage-warning" role="alert">
+              {saveError}
+            </p>
+          )}
         </header>
 
         {activePage === 'Overview' ? (
           <>
             <section className="stats-grid" aria-label="Machine summary">
-              <article className="stat-card"><p>Active machines</p><strong>{counts.machines}</strong></article>
-              <article className="stat-card"><p>Operational</p><strong className="green">{counts.operational}</strong></article>
-              <article className="stat-card"><p>Down</p><strong className="red">{counts.down}</strong></article>
-              <article className="stat-card"><p>Under maintenance</p><strong className="amber">{counts.underMaintenance}</strong></article>
+              <article className="stat-card">
+                <p>Active machines</p>
+                <strong>{counts.machines}</strong>
+              </article>
+
+              <article className="stat-card">
+                <p>Operational</p>
+                <strong className="green">{counts.operational}</strong>
+              </article>
+
+              <article className="stat-card">
+                <p>Down</p>
+                <strong className="red">{counts.down}</strong>
+              </article>
+
+              <article className="stat-card">
+                <p>Under maintenance</p>
+                <strong className="amber">
+                  {counts.underMaintenance}
+                </strong>
+              </article>
             </section>
 
+            {/* Production areas now use live API data. */}
             <section className="panel">
               <h3>Production areas</h3>
-              {data.areas.length === 0 && <p>No production areas yet.</p>}
-              <div className="areas-grid">
-                {data.areas.map((area) => {
-                  const systems = data.systems.filter((system) => system.areaId === area.id)
-                  const areaMachines = machines.filter((machine) => machine.areaId === area.id)
-                  return <article className="area-card" key={area.id}>
-                    <h4>{area.name}</h4>
-                    <p className="area-summary">{areaMachines.length} active machines</p>
-                    {systems.length === 0 && <p className="system-group">No systems in this area.</p>}
-                    {systems.map((system) => {
-                      const systemMachines = areaMachines.filter((machine) => machine.systemId === system.id)
-                      return <section className="system-group" key={system.id}>
-                        <h5>{system.name}</h5>
-                        {systemMachines.length === 0 ? <p>No active machines in this system.</p> :
+
+              {productionAreasLoading && (
+                <p>Loading production areas...</p>
+              )}
+
+              {productionAreasError && (
+                <p className="storage-warning" role="alert">
+                  Could not load production areas: {productionAreasError}
+                </p>
+              )}
+
+              {!productionAreasLoading &&
+                !productionAreasError &&
+                groupedAreas.length === 0 && (
+                  <p>No production areas found.</p>
+                )}
+
+              {!productionAreasLoading &&
+                !productionAreasError &&
+                groupedAreas.length > 0 && (
+                  <div className="areas-grid">
+                    {groupedAreas.map((area) => (
+                      <article className="area-card" key={area.id}>
+                        <h4>{area.name}</h4>
+
+                        <p className="area-summary">
+                          {area.machines.length} machines
+                        </p>
+
+                        {area.machines.length === 0 ? (
+                          <p>No machines in this area.</p>
+                        ) : (
                           <ul className="machine-list">
-                            {systemMachines.map((machine) => <li className="machine-row" key={machine.id}>
-                              <span>{machine.name}</span>
-                              <MachineBadge status={machine.status} />
-                            </li>)}
-                          </ul>}
-                      </section>
-                    })}
-                  </article>
-                })}
-              </div>
+                            {area.machines.map((machine) => (
+                              <li
+                                className="machine-row"
+                                key={machine.id}
+                              >
+                                <span>{machine.name}</span>
+
+                                <span>
+                                  {machine.status ?? 'Unknown'}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                )}
             </section>
           </>
         ) : activePage === 'Equipment' ? (
@@ -157,18 +371,26 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
 
             <div className="equipment-toolbar">
               <div className="filter-field search-field">
-                <label htmlFor="machine-search">Search machines</label>
+                <label htmlFor="machine-search">
+                  Search machines
+                </label>
+
                 <input
                   id="machine-search"
                   type="search"
                   placeholder="Search name, area, system, or location"
                   value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
+                  onChange={(event) =>
+                    setSearchTerm(event.target.value)
+                  }
                 />
               </div>
 
               <div className="filter-field">
-                <label htmlFor="machine-picker">Browse machines</label>
+                <label htmlFor="machine-picker">
+                  Browse machines
+                </label>
+
                 <select
                   id="machine-picker"
                   aria-controls="machine-details"
@@ -176,25 +398,39 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
                   disabled={machines.length === 0}
                   onChange={(event) => {
                     const id = event.target.value
+
                     setSelectedMachineId(id ? Number(id) : null)
+
                     if (id) {
                       requestAnimationFrame(() => {
-                        machineDetailsRef.current?.scrollIntoView({ block: 'nearest' })
+                        machineDetailsRef.current?.scrollIntoView({
+                          block: 'nearest'
+                        })
                       })
                     }
                   }}
                 >
-                  <option value="">{machines.length ? 'Select a machine' : 'No active machines'}</option>
+                  <option value="">
+                    {machines.length
+                      ? 'Select a machine'
+                      : 'No active machines'}
+                  </option>
+
                   <MachineOptions machines={machines} />
                 </select>
               </div>
 
               <div className="filter-field">
-                <label htmlFor="status-filter">Machine status</label>
+                <label htmlFor="status-filter">
+                  Machine status
+                </label>
+
                 <select
                   id="status-filter"
                   value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
+                  onChange={(event) =>
+                    setStatusFilter(event.target.value)
+                  }
                 >
                   <option value="All">All statuses</option>
                   <Options values={machineStatuses} />
@@ -206,7 +442,12 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
               Showing {filteredMachines.length} of {machines.length} machines
             </p>
 
-            <div className="table-container" tabIndex={0} role="region" aria-label="Machine directory">
+            <div
+              className="table-container"
+              tabIndex={0}
+              role="region"
+              aria-label="Machine directory"
+            >
               <table className="equipment-table">
                 <caption className="visually-hidden">
                   Machines matching your search and status filter
@@ -232,20 +473,27 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
                   ) : (
                     filteredMachines.map((machine) => (
                       <tr key={machine.id}>
-                        <td>M-{String(machine.id).padStart(3, '0')}</td>
+                        <td>
+                          M-{String(machine.id).padStart(3, '0')}
+                        </td>
+
                         <td>
                           <button
                             type="button"
                             className="machine-link"
                             aria-expanded={selectedMachineId === machine.id}
                             aria-controls="machine-details"
-                            onClick={() => setSelectedMachineId(machine.id)}
+                            onClick={() =>
+                              setSelectedMachineId(machine.id)
+                            }
                           >
                             {machine.name}
                           </button>
                         </td>
+
                         <td>{machine.areaName}</td>
                         <td>{machine.systemName}</td>
+
                         <td>
                           <MachineBadge status={machine.status} />
                         </td>
@@ -263,7 +511,9 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
                   aria-labelledby="machine-details-title"
                 >
                   <div className="details-header">
-                    <h4 id="machine-details-title">{selectedMachine.name}</h4>
+                    <h4 id="machine-details-title">
+                      {selectedMachine.name}
+                    </h4>
 
                     <button
                       type="button"
@@ -287,9 +537,24 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
                       <dd>{selectedMachine.areaName}</dd>
                     </div>
 
-                    <div><dt>Machine system</dt><dd>{selectedMachine.systemName}</dd></div>
-                    <div><dt>Location</dt><dd>{selectedMachine.location || 'Unspecified'}</dd></div>
-                    <div><dt>Status</dt><dd><MachineBadge status={selectedMachine.status} /></dd></div>
+                    <div>
+                      <dt>Machine system</dt>
+                      <dd>{selectedMachine.systemName}</dd>
+                    </div>
+
+                    <div>
+                      <dt>Location</dt>
+                      <dd>
+                        {selectedMachine.location || 'Unspecified'}
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt>Status</dt>
+                      <dd>
+                        <MachineBadge status={selectedMachine.status} />
+                      </dd>
+                    </div>
                   </dl>
 
                   <div className="status-editor">
@@ -305,7 +570,10 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
                           const newStatus = event.target.value
 
                           if (isOption(machineStatuses, newStatus)) {
-                            updateMachineStatus(selectedMachine.id, newStatus)
+                            updateMachineStatus(
+                              selectedMachine.id,
+                              newStatus
+                            )
                           }
                         }}
                       >
@@ -318,13 +586,26 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
             </div>
           </section>
         ) : activePage === 'Issues' ? (
-          <IssuesPage data={data} machines={allMachines} changeData={changeData} />
+          <IssuesPage
+            data={data}
+            machines={allMachines}
+            changeData={changeData}
+          />
         ) : activePage === 'Maintenance' ? (
-          <MaintenancePage data={data} machines={allMachines} changeData={changeData} today={today} />
+          <MaintenancePage
+            data={data}
+            machines={allMachines}
+            changeData={changeData}
+            today={today}
+          />
         ) : activePage === 'Reports' ? (
           <ReportsPage data={data} today={today} />
         ) : (
-          <AdministrationPage data={data} machines={allMachines} changeData={changeData} />
+          <AdministrationPage
+            data={data}
+            machines={allMachines}
+            changeData={changeData}
+          />
         )}
       </main>
     </div>

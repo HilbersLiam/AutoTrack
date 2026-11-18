@@ -1,3 +1,5 @@
+using AutoTrack.Repositories;
+using AutoTrack.Repositories.Interfaces;
 using DotEnv.Core;
 using MySqlConnector;
 
@@ -6,12 +8,21 @@ new EnvLoader().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddControllers();
+builder.Services.AddOpenApi();
 // Register MySql DataSource
 builder.Services.AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!);
+builder.Services.AddScoped<IProductionArea, ProductionAreaRepository>();
 
-builder.Services.AddControllers();
-
-builder.Services.AddOpenApi();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
 
@@ -24,6 +35,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+app.UseCors("ReactApp");
 
 app.MapControllers();
 
