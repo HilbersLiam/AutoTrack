@@ -58,18 +58,8 @@
   padding-top: 32px;
 }
 
-.avatar {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: #c2410c;
-  font-weight: bold;
-}
-
-.user-profile strong {
-  font-size: 14px;
+.user-profile .filter-field .field-label {
+  color: white;
 }
 
 .user-profile small {

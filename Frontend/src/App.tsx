@@ -9,7 +9,6 @@ import { useEffect, useRef, useState } from 'react'
 import {
   activeMachines,
   linkedMachines,
-  reportCounts,
   localDay
 } from './frontendData'
 
@@ -17,30 +16,32 @@ import type { loadDemo } from './frontendData'
 
 import type {
   ChangeData,
-  MachineStatus,
-  ProductionAreaMachineDto
+  MachineStatus
 } from './models'
 
-import { MachineBadge, MachineOptions, Options } from './EquipmentUi'
+import { Field, MachineBadge, MachineOptions, Options } from './EquipmentUi'
 import { isOption, machineStatuses } from './models'
+import { parseLiveOverview } from './liveOverview'
+import { can, demoRoles } from './permissions'
+import type { Permission } from './permissions'
 
 // Change this if your API uses a different URL or port.
 const PRODUCTION_AREAS_API_URL =
   'http://localhost:5091/api/ProductionArea'
 
-// Structure used to group machines under their production areas.
-type GroupedProductionArea = {
-  id: number
-  name: string
-  machines: {
-    id: number
-    name: string
-    status: string | null
-  }[]
-}
+const pages = ['Overview', 'Equipment', 'Issues', 'Maintenance', 'Reports', 'Administration'] as const
+type Page = typeof pages[number]
+type OverviewState =
+  | { state: 'loading' }
+  | { state: 'error'; message: string }
+  | { state: 'ready'; overview: ReturnType<typeof parseLiveOverview> }
 
 function App({ store }: { store: ReturnType<typeof loadDemo> }) {
-  const [activePage, setActivePage] = useState('Overview')
+  const [demoRole, setDemoRole] = useState<keyof typeof demoRoles>('normal')
+  const role = demoRoles[demoRole]
+  const [requestedPage, setActivePage] = useState<Page>('Overview')
+  const canView = (page: Page) => page !== 'Administration' || can(role, 'administration')
+  const activePage = canView(requestedPage) ? requestedPage : 'Overview'
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
 
@@ -52,15 +53,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
       : ''
   )
 
-  // Live production area data retrieved from the C# API.
-  const [productionAreas, setProductionAreas] =
-    useState<ProductionAreaMachineDto[]>([])
-
-  const [productionAreasLoading, setProductionAreasLoading] =
-    useState(true)
-
-  const [productionAreasError, setProductionAreasError] =
-    useState<string | null>(null)
+  const [live, setLive] = useState<OverviewState>({ state: 'loading' })
 
   const [today, setToday] = useState(localDay)
 
@@ -90,25 +83,11 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
           )
         }
 
-        const result: ProductionAreaMachineDto[] =
-          await response.json()
-
-        setProductionAreas(result)
-
+        const overview = parseLiveOverview(await response.json())
+        if (!controller.signal.aborted) setLive({ state: 'ready', overview })
       } catch (error) {
-        if (controller.signal.aborted) {
-          return
-        }
-
-        setProductionAreasError(
-          error instanceof Error
-            ? error.message
-            : 'Failed to retrieve production areas.'
-        )
-
-      } finally {
         if (!controller.signal.aborted) {
-          setProductionAreasLoading(false)
+          setLive({ state: 'error', message: error instanceof Error ? error.message : 'Request failed.' })
         }
       }
     }
@@ -130,43 +109,8 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
     (machine) => machine.id === selectedMachineId
   )
 
-  const counts = reportCounts(data, today)
-
-  // Group the flat API response into production areas.
-  const groupedAreas = Array.from(
-    productionAreas.reduce((groups, row) => {
-      let area = groups.get(row.areaID)
-
-      // Create the production area if it doesn't exist yet.
-      if (!area) {
-        area = {
-          id: row.areaID,
-          name: row.areaName,
-          machines: []
-        }
-
-        groups.set(row.areaID, area)
-      }
-
-      // Add the machine if this production area has one.
-      if (
-        row.machineID !== null &&
-        row.machineName !== null
-      ) {
-        area.machines.push({
-          id: row.machineID,
-          name: row.machineName,
-          status: row.currentStatus
-        })
-      }
-
-      return groups
-
-    }, new Map<number, GroupedProductionArea>())
-      .values()
-  )
-
-  const changeData: ChangeData = (update) => {
+  function changeData(permission: Permission, update: Parameters<ChangeData>[0]) {
+    if (!can(role, permission)) return false
     const next = update(data)
 
     if (!store.save(next)) {
@@ -186,7 +130,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
     machineId: number,
     status: MachineStatus
   ) {
-    changeData((current) => ({
+    changeData('changeMachineStatus', (current) => ({
       ...current,
       machines: current.machines.map((machine) =>
         machine.id === machineId
@@ -212,15 +156,6 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
     return matchesSearch && matchesStatus
   })
 
-  const pages = [
-    'Overview',
-    'Equipment',
-    'Issues',
-    'Maintenance',
-    'Reports',
-    'Administration'
-  ]
-
   return (
     <div className="app-layout">
       <aside className="sidebar">
@@ -229,7 +164,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
         </h1>
 
         <nav aria-label="Main navigation">
-          {pages.map((page) => (
+          {pages.filter(canView).map((page) => (
             <button
               key={page}
               type="button"
@@ -243,12 +178,19 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
         </nav>
 
         <div className="user-profile">
-          <div className="avatar">OW</div>
-
-          <div>
-            <strong>Omar Waled</strong>
-            <small>Demo user</small>
-          </div>
+          <Field label="Demo role">
+            <select value={demoRole} aria-describedby="demo-role-note" onChange={(event) => {
+              const nextRole = event.target.value === 'admin' ? 'admin' : 'normal'
+              setDemoRole(nextRole)
+              if (!can(demoRoles[nextRole], 'administration') && activePage === 'Administration') {
+                setActivePage('Overview')
+              }
+            }}>
+              <option value="normal">Normal User</option>
+              <option value="admin">Admin</option>
+            </select>
+            <small id="demo-role-note">Interface preview only</small>
+          </Field>
         </div>
       </aside>
 
@@ -256,7 +198,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
         <header className="page-header">
           <div>
             <span className="demo-label">
-              Production areas: live API | Other sections: demo data
+              {activePage === 'Overview' ? 'Live API data' : 'Demo data · browser storage'}
             </span>
 
             <h2>
@@ -285,84 +227,53 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
 
         {activePage === 'Overview' ? (
           <>
-            <section className="stats-grid" aria-label="Machine summary">
-              <article className="stat-card">
-                <p>Active machines</p>
-                <strong>{counts.machines}</strong>
-              </article>
-
-              <article className="stat-card">
-                <p>Operational</p>
-                <strong className="green">{counts.operational}</strong>
-              </article>
-
-              <article className="stat-card">
-                <p>Down</p>
-                <strong className="red">{counts.down}</strong>
-              </article>
-
-              <article className="stat-card">
-                <p>Under maintenance</p>
-                <strong className="amber">
-                  {counts.underMaintenance}
-                </strong>
-              </article>
-            </section>
-
-            {/* Production areas now use live API data. */}
+            {live.state === 'ready' && (
+              <section className="stats-grid" aria-label="Machine summary">
+                <article className="stat-card"><p>Active machines</p><strong>{live.overview.machineCount}</strong></article>
+                <article className="stat-card"><p>Operational</p><strong className="green">{live.overview.counts.Operational}</strong></article>
+                <article className="stat-card"><p>Down</p><strong className="red">{live.overview.counts.Down}</strong></article>
+                <article className="stat-card">
+                  <p>Under maintenance</p><strong className="amber">{live.overview.counts['Under Maintenance']}</strong>
+                </article>
+              </section>
+            )}
             <section className="panel">
               <h3>Production areas</h3>
-
-              {productionAreasLoading && (
-                <p>Loading production areas...</p>
+              {live.state === 'loading' && <p role="status">Loading production areas…</p>}
+              {live.state === 'error' && (
+                <p className="storage-warning" role="alert">Could not load production areas. {live.message}</p>
               )}
-
-              {productionAreasError && (
-                <p className="storage-warning" role="alert">
-                  Could not load production areas: {productionAreasError}
-                </p>
+              {live.state === 'ready' && (
+                <>
+                  {live.overview.counts.Unknown > 0 && <p>Unknown status · {live.overview.counts.Unknown}</p>}
+                  {live.overview.areas.length === 0 ? <p>No production areas found.</p> : (
+                    <div className="areas-grid">
+                      {live.overview.areas.map((area) => (
+                        <article className="area-card" key={area.id}>
+                          <h4>{area.name}</h4>
+                          <p className="area-summary">{area.machineCount} machines</p>
+                          {area.systems.length === 0 && <p>No machines in this area.</p>}
+                          {area.systems.map((system) => (
+                            <div className="system-group" key={system.id ?? 'unavailable'}>
+                              <h5>{system.name}</h5>
+                              {system.machines.length === 0 ? <p>No machines in this system.</p> : (
+                                <ul className="machine-list">
+                                  {system.machines.map((machine) => (
+                                    <li className="machine-row" key={machine.id}>
+                                      <span>{machine.name}</span>
+                                      <MachineBadge status={machine.status} />
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
-
-              {!productionAreasLoading &&
-                !productionAreasError &&
-                groupedAreas.length === 0 && (
-                  <p>No production areas found.</p>
-                )}
-
-              {!productionAreasLoading &&
-                !productionAreasError &&
-                groupedAreas.length > 0 && (
-                  <div className="areas-grid">
-                    {groupedAreas.map((area) => (
-                      <article className="area-card" key={area.id}>
-                        <h4>{area.name}</h4>
-
-                        <p className="area-summary">
-                          {area.machines.length} machines
-                        </p>
-
-                        {area.machines.length === 0 ? (
-                          <p>No machines in this area.</p>
-                        ) : (
-                          <ul className="machine-list">
-                            {area.machines.map((machine) => (
-                              <li
-                                className="machine-row"
-                                key={machine.id}
-                              >
-                                <span>{machine.name}</span>
-
-                                <span>
-                                  {machine.status ?? 'Unknown'}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </article>
-                    ))}
-                  </div>
-                )}
             </section>
           </>
         ) : activePage === 'Equipment' ? (
@@ -557,7 +468,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
                     </div>
                   </dl>
 
-                  <div className="status-editor">
+                  {can(role, 'changeMachineStatus') && <div className="status-editor">
                     <div className="filter-field">
                       <label htmlFor="update-machine-status">
                         Change machine status
@@ -580,7 +491,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
                         <Options values={machineStatuses} />
                       </select>
                     </div>
-                  </div>
+                  </div>}
                 </section>
               )}
             </div>
@@ -589,24 +500,25 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
           <IssuesPage
             data={data}
             machines={allMachines}
-            changeData={changeData}
+            reportIssue={(update) => changeData('reportIssue', update)}
+            manageIssues={can(role, 'manageIssues') ? (update) => changeData('manageIssues', update) : undefined}
           />
         ) : activePage === 'Maintenance' ? (
           <MaintenancePage
             data={data}
             machines={allMachines}
-            changeData={changeData}
+            changeData={can(role, 'manageMaintenance') ? (update) => changeData('manageMaintenance', update) : undefined}
             today={today}
           />
         ) : activePage === 'Reports' ? (
           <ReportsPage data={data} today={today} />
-        ) : (
+        ) : activePage === 'Administration' && can(role, 'administration') ? (
           <AdministrationPage
             data={data}
             machines={allMachines}
-            changeData={changeData}
+            changeData={(update) => changeData('administration', update)}
           />
-        )}
+        ) : null}
       </main>
     </div>
   )

@@ -7,8 +7,10 @@ const badgeClasses = {
   'Under Maintenance': 'status-maintenance',
 }
 
-export function MachineBadge({ status }: { status: MachineStatus }) {
-  return <span className={`status-badge ${badgeClasses[status]}`}>{status}</span>
+export function MachineBadge({ status }: { status: MachineStatus | null }) {
+  return <span className={`status-badge ${status === null ? 'status-neutral' : badgeClasses[status]}`}>
+    {status ?? 'Unknown'}
+  </span>
 }
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {

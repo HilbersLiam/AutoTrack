@@ -49,15 +49,6 @@ export type DemoData = {
   issues: Issue[]
   tasks: MaintenanceTask[]
 }
-export interface ProductionAreaMachineDto {
-    areaID: number;
-    areaName: string;
-    machineID: number | null;
-    machineName: string | null;
-    currentStatus: string | null;
-}
-
-
 export type LegacyArea = ProductionArea & {
   machines: (Pick<Machine, 'id' | 'name' | 'status'> & Partial<Pick<Machine, 'location' | 'isArchived'>>)[]
 }

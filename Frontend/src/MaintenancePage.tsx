@@ -7,7 +7,7 @@ import { demoTechnicians } from './demoData'
 import { taskStatuses } from './models'
 import type { ChangeData, DemoData, LinkedMachine, MaintenanceTask, TaskStatus } from './models'
 
-type Props = { data: DemoData; machines: LinkedMachine[]; changeData: ChangeData; today: string }
+type Props = { data: DemoData; machines: LinkedMachine[]; changeData?: ChangeData; today: string }
 const transitions: Record<TaskStatus, [label: string, status: TaskStatus][]> = {
   Scheduled: [['Start', 'In Progress'], ['Complete', 'Completed'], ['Cancel task', 'Cancelled']],
   'In Progress': [['Complete', 'Completed'], ['Cancel task', 'Cancelled']],
@@ -39,6 +39,7 @@ export default function MaintenancePage({ data, machines, changeData, today }: P
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!changeData) return
     const form = event.currentTarget
     const values = new FormData(form)
     const machineId = Number(values.get('machine'))
@@ -64,6 +65,7 @@ export default function MaintenancePage({ data, machines, changeData, today }: P
   }
 
   function updateTask(task: MaintenanceTask, message: string) {
+    if (!changeData) return
     setNotice('')
     if (changeData((current) => ({ ...current, tasks: upsert(current.tasks, task) }))) {
       setNotice(message)
@@ -72,7 +74,7 @@ export default function MaintenancePage({ data, machines, changeData, today }: P
   }
 
   return <div className="issues-layout">
-    <section className="panel">
+    {changeData && <section className="panel">
       <h3>Schedule maintenance</h3>
       {!choices.length && <p>Add or restore a machine in Administration to schedule maintenance.</p>}
       <form className="issue-form" onSubmit={submit}>
@@ -92,7 +94,7 @@ export default function MaintenancePage({ data, machines, changeData, today }: P
         {error && <Notice message={error} error />}
         <button className="primary-button" type="submit" disabled={!choices.length}>Schedule maintenance</button>
       </form>
-    </section>
+    </section>}
 
     <section className="panel">
       <h3>Maintenance tasks</h3>
@@ -110,10 +112,10 @@ export default function MaintenancePage({ data, machines, changeData, today }: P
       <ScrollTable label="Maintenance tasks ordered by due date">
         <thead><tr>
           <th scope="col">Machine</th><th scope="col">Work</th><th scope="col">Technician</th>
-          <th scope="col">Due date</th><th scope="col">Status</th><th scope="col">Actions</th>
+          <th scope="col">Due date</th><th scope="col">Status</th>{changeData && <th scope="col">Actions</th>}
         </tr></thead>
         <tbody>
-          {!visible.length && <tr><td colSpan={6} className="empty-state">No maintenance tasks to show.</td></tr>}
+          {!visible.length && <tr><td colSpan={changeData ? 6 : 5} className="empty-state">No maintenance tasks to show.</td></tr>}
           {visible.map((task) => <tr key={task.id}>
             <td><MachineReference machine={machines.find((machine) => machine.id === task.machineId)} id={task.machineId} /></td>
             <td className="issue-description">
@@ -131,7 +133,7 @@ export default function MaintenancePage({ data, machines, changeData, today }: P
                 <time dateTime={task.completedAt}>{new Date(task.completedAt).toLocaleString()}</time>
               </small>}
             </td>
-            <td>
+            {changeData && <td>
               {editing === task.id ?
                 <form className="task-editor" onSubmit={(event) => {
                   event.preventDefault()
@@ -160,7 +162,7 @@ export default function MaintenancePage({ data, machines, changeData, today }: P
                       onClick={() => updateTask(changeTaskStatus(task, status), `Task updated to ${status}.`)}>{label}</button>)}
                   <button type="button" className="close-details" onClick={() => setEditing(task.id)}>Edit details</button>
                 </div>}
-            </td>
+            </td>}
           </tr>)}
         </tbody>
       </ScrollTable>

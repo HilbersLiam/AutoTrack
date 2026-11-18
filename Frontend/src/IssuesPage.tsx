@@ -5,9 +5,9 @@ import { activeMachines, changeIssueStatus, newWorkId, upsert } from './frontend
 import { isOption, issueStatuses, priorities } from './models'
 import type { ChangeData, DemoData, Issue, IssueStatus, LinkedMachine } from './models'
 
-type Props = { data: DemoData; machines: LinkedMachine[]; changeData: ChangeData }
+type Props = { data: DemoData; machines: LinkedMachine[]; reportIssue: ChangeData; manageIssues?: ChangeData }
 
-export default function IssuesPage({ data: { issues }, machines, changeData }: Props) {
+export default function IssuesPage({ data: { issues }, machines, reportIssue, manageIssues }: Props) {
   const [statusFilter, setStatusFilter] = useState('All')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -34,15 +34,16 @@ export default function IssuesPage({ data: { issues }, machines, changeData }: P
     }
 
     setError('')
-    if (changeData((current) => ({ ...current, issues: [issue, ...current.issues] }))) {
+    if (reportIssue((current) => ({ ...current, issues: [issue, ...current.issues] }))) {
       form.reset()
       setNotice('Issue reported.')
     }
   }
 
   function transition(issue: Issue, status: IssueStatus) {
+    if (!manageIssues) return
     setNotice('')
-    if (changeData((current) => ({
+    if (manageIssues((current) => ({
       ...current, issues: upsert(current.issues, changeIssueStatus(issue, status)),
     }))) setNotice(`Issue updated to ${status}.`)
   }
@@ -50,7 +51,7 @@ export default function IssuesPage({ data: { issues }, machines, changeData }: P
   return <div className="issues-layout">
     <section className="panel">
       <h3>Report a problem</h3>
-      {!choices.length && <p>Add or restore a machine in Administration to report an issue.</p>}
+      {!choices.length && <p>An active machine is required to report an issue.</p>}
       <form className="issue-form" onSubmit={submit}>
         <div className="issue-form-row">
           <Field label="Machine">
@@ -86,10 +87,10 @@ export default function IssuesPage({ data: { issues }, machines, changeData }: P
       <ScrollTable label="Reported machine issues">
         <thead><tr>
           <th scope="col">Machine</th><th scope="col">Problem</th><th scope="col">Priority</th>
-          <th scope="col">Status</th><th scope="col">Reported</th><th scope="col">Actions</th>
+          <th scope="col">Status</th><th scope="col">Reported</th>{manageIssues && <th scope="col">Actions</th>}
         </tr></thead>
         <tbody>
-          {visible.length === 0 && <tr><td colSpan={6} className="empty-state">No issues to show.</td></tr>}
+          {visible.length === 0 && <tr><td colSpan={manageIssues ? 6 : 5} className="empty-state">No issues to show.</td></tr>}
           {visible.map((issue) => <tr key={issue.id}>
             <td><MachineReference machine={machines.find((machine) => machine.id === issue.machineId)} id={issue.machineId} /></td>
             <td className="issue-description">{issue.description}</td>
@@ -98,13 +99,13 @@ export default function IssuesPage({ data: { issues }, machines, changeData }: P
               {issue.status}
             </span></td>
             <td><time dateTime={issue.createdAt}>{new Date(issue.createdAt).toLocaleString()}</time></td>
-            <td><div className="action-row">
+            {manageIssues && <td><div className="action-row">
               {issue.status === 'Open' && <button type="button" className="close-details"
                 onClick={() => transition(issue, 'In Progress')}>Start</button>}
               {issue.status === 'Resolved' ?
                 <button type="button" className="close-details" onClick={() => transition(issue, 'Open')}>Reopen</button> :
                 <button type="button" className="close-details" onClick={() => transition(issue, 'Resolved')}>Resolve</button>}
-            </div></td>
+            </div></td>}
           </tr>)}
         </tbody>
       </ScrollTable>

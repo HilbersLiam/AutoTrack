@@ -2,11 +2,28 @@
 
 Run `npm install` and `npm run dev`. Verify with `npm run build`, `npm run lint`, and `node --test frontendData.test.mjs` on Node 24.
 
-## Features
+## Data and CRUD coverage
 
-- Overview and Equipment show the area, system, and machine hierarchy. Browse, search, filter, and update equipment status.
-- Administration manages areas, systems, and machines, including archive and restore.
-- Issues and Maintenance track work against machines. Reports summarize active equipment, unresolved issues, and maintenance.
+Overview reads `GET http://localhost:5091/api/ProductionArea` from the ASP.NET API. Its cards and totals use the same response, count each active machine once by ID, and include empty areas. The current API omits system IDs and names, so Overview shows those machines under “Machine system unavailable” until the endpoint supplies `systemID` and `systemName`. Missing or unrecognized statuses appear as Unknown.
+
+| Feature | Working operations | Persistence |
+| --- | --- | --- |
+| Overview | Read production areas, active machines, and latest machine statuses | MySQL read through the API |
+| Equipment | Read, search, and filter machines. Admin can change status. | Browser demo storage |
+| Administration | Admin can create and edit areas, systems, and machines, and archive and restore machines. | Browser demo storage |
+| Issues | Both roles can read and create issues. Admin can start, resolve, and reopen them. | Browser demo storage |
+| Maintenance | Both roles can read tasks. Admin can schedule, assign, edit work notes, and change task status. | Browser demo storage |
+| Reports | Read summaries of demo equipment, issues, and maintenance. | Calculated from browser demo data |
+
+All frontend writes currently save to browser storage. Machine archive and restore are reversible soft deletion in the demo. Existing issue and task references are retained. There is no permanent delete operation. Confirm with the instructor whether soft deletion meets the assignment's Delete requirement.
+
+## Demo roles
+
+The Demo role selector defaults to Normal User on each load and previews both interfaces. The SQL sample defines `Operator`, `Technician`, and `Supervisor`. The preview maps Operator and Technician to Normal User and Supervisor to Admin. These mappings describe the preview policy and should be confirmed before enabling account-based access. Unknown role values receive no mutation or Administration permissions.
+
+Normal User can view Overview, Equipment, Issues, Maintenance, and Reports and report new issues. Admin also has Administration and equipment, issue, and maintenance mutation controls. Switching to Normal User from Administration returns to Overview.
+
+The API has no login or current-user endpoint. The switcher is an interface preview. Real access requires server-authenticated identity, an agreed role policy, and backend authorization on protected reads and writes.
 
 ## Demo storage
 
@@ -32,7 +49,7 @@ The UI uses the schema enum strings directly. Machine statuses are Operational, 
 
 Reports count Open and In Progress issues as unresolved. Outstanding maintenance includes Scheduled and In Progress tasks and excludes Completed and Cancelled tasks.
 
-- Read the area, system, and machine lists with archived rows available for historical links and Administration. Return the current operating status with each machine. Load issues and maintenance tasks alongside them, or keep their API cache synchronized after mutations.
+- Extend the Overview read to include system IDs and names. Add equipment reads with archived rows available for historical links and Administration. Return the current operating status with each machine. Add issue, maintenance, and eligible technician reads and keep the API data synchronized after mutations.
 - Create and update areas, systems, and machines. Archive and restore via `IsArchived`. Preserve IDs during moves. Keep duplicate-name and parent validation on the server. SQL also requires description fields for areas, systems, and machines. Agree on a server default for the demo forms or expose description inputs when integrating.
 - Append machine status history on a status change, using the signed-in actor for `ChangedByUserID`. If machine edits and a status change are submitted together, persist them as one operation.
 - Create issues and apply status transitions with `ReportedByUserID` and `ResolvedAt`. Create and update tasks with technician assignment, work notes, and completion time. The server supplies `CreatedByUserID`, `LastUpdatedByUserID`, and audit timestamps. Clear completion on reopen. `IssueID` on a maintenance task is optional and currently unset by the demo.
