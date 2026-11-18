@@ -1,13 +1,10 @@
 using DotEnv.Core;
 using MySqlConnector;
 
-var builder = WebApplication.CreateBuilder(args);
-
 // Load the .env variables
 new EnvLoader().Load();
 
-// Add environment variables to configuration
-builder.Configuration.AddEnvironmentVariables();
+var builder = WebApplication.CreateBuilder(args);
 
 // Register MySql DataSource
 builder.Services.AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!);
