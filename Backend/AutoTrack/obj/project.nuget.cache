@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "dgSpecHash": "iaeSTzEMn2o=",
+  "success": true,
+  "projectFilePath": "/home/liamhilbers/Develop/AutoTrack/Backend/AutoTrack/AutoTrack.csproj",
+  "expectedPackageFiles": [
+    "/home/liamhilbers/.nuget/packages/dapper/2.1.89/dapper.2.1.89.nupkg.sha512",
+    "/home/liamhilbers/.nuget/packages/dotenv.core/3.1.1/dotenv.core.3.1.1.nupkg.sha512",
+    "/home/liamhilbers/.nuget/packages/microsoft.aspnetcore.openapi/10.0.13/microsoft.aspnetcore.openapi.10.0.13.nupkg.sha512",
+    "/home/liamhilbers/.nuget/packages/microsoft.openapi/2.12.2/microsoft.openapi.2.12.2.nupkg.sha512",
+    "/home/liamhilbers/.nuget/packages/mysqlconnector/3.0.0/mysqlconnector.3.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
