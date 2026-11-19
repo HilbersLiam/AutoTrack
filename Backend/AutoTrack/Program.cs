@@ -16,6 +16,7 @@ builder.Services.AddScoped<IProductionArea, ProductionAreaRepository>();
 builder.Services.AddScoped<IIssueReport, IssueReportRepository>();
 builder.Services.AddScoped<IMaintenanceTask, MaintenanceTaskRepository>();
 builder.Services.AddScoped<IMachineStatusHistory, MachineStatusHistoryRepository>();
+builder.Services.AddScoped<IAdministration, AdministrationRepository>();
 
 builder.Services.AddCors(options =>
 {
