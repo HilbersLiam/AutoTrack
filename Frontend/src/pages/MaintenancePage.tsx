@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Field, MachineOptions, MachineReference, Notice, Options, ScrollTable } from './EquipmentUi'
+import { Field, MachineOptions, MachineReference, Notice, Options, ScrollTable } from '../components/EquipmentUi'
 import { activeMachines, changeTaskStatus, formatDay, isOutstanding, isOverdue,
-  localDay, newWorkId, reportCounts, upsert, validDay } from './frontendData'
-import { demoTechnicians } from './demoData'
-import { taskStatuses } from './models'
-import type { ChangeData, DemoData, LinkedMachine, MaintenanceTask, TaskStatus } from './models'
+  localDay, newWorkId, reportCounts, upsert, validDay } from '../frontendData'
+import { demoTechnicians } from '../demoData'
+import { taskStatuses } from '../models'
+import type { ChangeData, DemoData, LinkedMachine, MaintenanceTask, TaskStatus } from '../models'
 
 type Props = { data: DemoData; machines: LinkedMachine[]; changeData?: ChangeData; today: string }
 const transitions: Record<TaskStatus, [label: string, status: TaskStatus][]> = {

@@ -2,7 +2,7 @@ using System;
 
 namespace AutoTrack.Models;
 
-public class MaintenanceTask
+public class MaintenanceTaskDto
 {
     public int TaskID { get; set; }
     public int MachineId { get; set; }

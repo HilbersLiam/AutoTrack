@@ -1,9 +1,9 @@
 ﻿import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Field, MachineBadge, Notice, Options, ScrollTable } from './EquipmentUi'
-import { nextId, upsert } from './frontendData'
-import { isOption, machineStatuses } from './models'
-import type { ChangeData, DemoData, LinkedMachine, MachineSystem, ProductionArea } from './models'
+import { Field, MachineBadge, Notice, Options, ScrollTable } from '../components/EquipmentUi'
+import { nextId, upsert } from '../frontendData'
+import { isOption, machineStatuses } from '../models'
+import type { ChangeData, DemoData, LinkedMachine, MachineSystem, ProductionArea } from '../models'
 
 type Props = { data: DemoData; machines: LinkedMachine[]; changeData: ChangeData }
 type Message = { message: string; error?: boolean }

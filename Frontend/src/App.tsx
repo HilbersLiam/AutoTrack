@@ -1,40 +1,26 @@
-
 import './App.css'
-import IssuesPage from './IssuesPage'
-import MaintenancePage from './MaintenancePage'
-import ReportsPage from './ReportsPage'
-import AdministrationPage from './AdministrationPage'
-import { useEffect, useRef, useState } from 'react'
+import EquipmentPage from './pages/EquipmentPage'
+import IssuesPage from './pages/IssuesPage'
+import MaintenancePage from './pages/MaintenancePage'
+import ReportsPage from './pages/ReportsPage'
+import AdministrationPage from './pages/AdministrationPage'
+import { useEffect, useState } from 'react'
 
 import {
-  activeMachines,
   linkedMachines,
   localDay
 } from './frontendData'
 
 import type { loadDemo } from './frontendData'
+import type { ChangeData, LinkedMachine } from './models'
 
-import type {
-  ChangeData,
-  MachineStatus
-} from './models'
-
-import { Field, MachineBadge, MachineOptions, Options } from './EquipmentUi'
-import { isOption, machineStatuses } from './models'
-import { parseLiveOverview } from './liveOverview'
+import { Field, MachineBadge } from './components/EquipmentUi'
+import { useLiveOverview } from './hooks/useLiveOverview'
 import { can, demoRoles } from './permissions'
 import type { Permission } from './permissions'
 
-// Change this if your API uses a different URL or port.
-const PRODUCTION_AREAS_API_URL =
-  'http://localhost:5091/api/ProductionArea'
-
 const pages = ['Overview', 'Equipment', 'Issues', 'Maintenance', 'Reports', 'Administration'] as const
 type Page = typeof pages[number]
-type OverviewState =
-  | { state: 'loading' }
-  | { state: 'error'; message: string }
-  | { state: 'ready'; overview: ReturnType<typeof parseLiveOverview> }
 
 function App({ store }: { store: ReturnType<typeof loadDemo> }) {
   const [demoRole, setDemoRole] = useState<keyof typeof demoRoles>('normal')
@@ -42,10 +28,8 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
   const [requestedPage, setActivePage] = useState<Page>('Overview')
   const canView = (page: Page) => page !== 'Administration' || can(role, 'administration')
   const activePage = canView(requestedPage) ? requestedPage : 'Overview'
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All')
 
-  // Existing demo data used by the other dashboard pages.
+  // Existing demo data used by Maintenance, Reports, and Administration until migrated.
   const [data, setData] = useState(store.data)
   const [saveError, setSaveError] = useState(
     store.initialSaveFailed
@@ -53,7 +37,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
       : ''
   )
 
-  const [live, setLive] = useState<OverviewState>({ state: 'loading' })
+  const live = useLiveOverview()
 
   const [today, setToday] = useState(localDay)
 
@@ -66,48 +50,27 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
     return () => window.clearInterval(interval)
   }, [])
 
-  // Retrieve production areas from the ASP.NET Core API.
-  useEffect(() => {
-    const controller = new AbortController()
+  // Demo machines for pages still on browser storage
+  const demoMachines = linkedMachines(data)
 
-    const fetchProductionAreas = async () => {
-      try {
-        const response = await fetch(
-          PRODUCTION_AREAS_API_URL,
-          { signal: controller.signal }
-        )
-
-        if (!response.ok) {
-          throw new Error(
-            `HTTP Error: ${response.status} ${response.statusText}`
+  // Live API machines extracted from useLiveOverview
+  const liveMachines: LinkedMachine[] =
+    live.state === 'ready'
+      ? live.overview.areas.flatMap((area) =>
+          area.systems.flatMap((system) =>
+            system.machines.map((machine) => ({
+              ...machine,
+              status: machine.status ?? 'Operational',
+              location: area.name,
+              isArchived: false,
+              areaId: area.id,
+              areaName: area.name,
+              systemId: system.id ?? 0,
+              systemName: system.name,
+            }))
           )
-        }
-
-        const overview = parseLiveOverview(await response.json())
-        if (!controller.signal.aborted) setLive({ state: 'ready', overview })
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setLive({ state: 'error', message: error instanceof Error ? error.message : 'Request failed.' })
-        }
-      }
-    }
-
-    fetchProductionAreas()
-
-    return () => controller.abort()
-  }, [])
-
-  const [selectedMachineId, setSelectedMachineId] =
-    useState<number | null>(null)
-
-  const machineDetailsRef = useRef<HTMLDivElement>(null)
-
-  const allMachines = linkedMachines(data)
-  const machines = activeMachines(allMachines)
-
-  const selectedMachine = machines.find(
-    (machine) => machine.id === selectedMachineId
-  )
+        )
+      : []
 
   function changeData(permission: Permission, update: Parameters<ChangeData>[0]) {
     if (!can(role, permission)) return false
@@ -126,35 +89,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
     return true
   }
 
-  function updateMachineStatus(
-    machineId: number,
-    status: MachineStatus
-  ) {
-    changeData('changeMachineStatus', (current) => ({
-      ...current,
-      machines: current.machines.map((machine) =>
-        machine.id === machineId
-          ? { ...machine, status }
-          : machine
-      )
-    }))
-  }
-
-  const filteredMachines = machines.filter((machine) => {
-    const matchesSearch = [
-      machine.name,
-      machine.areaName,
-      machine.systemName,
-      machine.location
-    ].some((value) =>
-      value.toLowerCase().includes(searchTerm.trim().toLowerCase())
-    )
-
-    const matchesStatus =
-      statusFilter === 'All' || machine.status === statusFilter
-
-    return matchesSearch && matchesStatus
-  })
+  const isLivePage = activePage === 'Overview' || activePage === 'Equipment' || activePage === 'Issues'
 
   return (
     <div className="app-layout">
@@ -198,7 +133,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
         <header className="page-header">
           <div>
             <span className="demo-label">
-              {activePage === 'Overview' ? 'Live API data' : 'Demo data · browser storage'}
+              {isLivePage ? 'Live API data' : 'Demo data · browser storage'}
             </span>
 
             <h2>
@@ -212,13 +147,13 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
             )}
           </div>
 
-          {store.warning && (
+          {!isLivePage && store.warning && (
             <p className="storage-warning" role="status">
               {store.warning}
             </p>
           )}
 
-          {saveError && (
+          {!isLivePage && saveError && (
             <p className="storage-warning" role="alert">
               {saveError}
             </p>
@@ -277,236 +212,16 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
             </section>
           </>
         ) : activePage === 'Equipment' ? (
-          <section className="panel">
-            <h3>Machine directory</h3>
-
-            <div className="equipment-toolbar">
-              <div className="filter-field search-field">
-                <label htmlFor="machine-search">
-                  Search machines
-                </label>
-
-                <input
-                  id="machine-search"
-                  type="search"
-                  placeholder="Search name, area, system, or location"
-                  value={searchTerm}
-                  onChange={(event) =>
-                    setSearchTerm(event.target.value)
-                  }
-                />
-              </div>
-
-              <div className="filter-field">
-                <label htmlFor="machine-picker">
-                  Browse machines
-                </label>
-
-                <select
-                  id="machine-picker"
-                  aria-controls="machine-details"
-                  value={selectedMachine?.id ?? ''}
-                  disabled={machines.length === 0}
-                  onChange={(event) => {
-                    const id = event.target.value
-
-                    setSelectedMachineId(id ? Number(id) : null)
-
-                    if (id) {
-                      requestAnimationFrame(() => {
-                        machineDetailsRef.current?.scrollIntoView({
-                          block: 'nearest'
-                        })
-                      })
-                    }
-                  }}
-                >
-                  <option value="">
-                    {machines.length
-                      ? 'Select a machine'
-                      : 'No active machines'}
-                  </option>
-
-                  <MachineOptions machines={machines} />
-                </select>
-              </div>
-
-              <div className="filter-field">
-                <label htmlFor="status-filter">
-                  Machine status
-                </label>
-
-                <select
-                  id="status-filter"
-                  value={statusFilter}
-                  onChange={(event) =>
-                    setStatusFilter(event.target.value)
-                  }
-                >
-                  <option value="All">All statuses</option>
-                  <Options values={machineStatuses} />
-                </select>
-              </div>
-            </div>
-
-            <p className="results-count" role="status">
-              Showing {filteredMachines.length} of {machines.length} machines
-            </p>
-
-            <div
-              className="table-container"
-              tabIndex={0}
-              role="region"
-              aria-label="Machine directory"
-            >
-              <table className="equipment-table">
-                <caption className="visually-hidden">
-                  Machines matching your search and status filter
-                </caption>
-
-                <thead>
-                  <tr>
-                    <th scope="col">Machine ID</th>
-                    <th scope="col">Machine name</th>
-                    <th scope="col">Production area</th>
-                    <th scope="col">Machine system</th>
-                    <th scope="col">Status</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredMachines.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="empty-state">
-                        No machines found. Try another search or status.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredMachines.map((machine) => (
-                      <tr key={machine.id}>
-                        <td>
-                          M-{String(machine.id).padStart(3, '0')}
-                        </td>
-
-                        <td>
-                          <button
-                            type="button"
-                            className="machine-link"
-                            aria-expanded={selectedMachineId === machine.id}
-                            aria-controls="machine-details"
-                            onClick={() =>
-                              setSelectedMachineId(machine.id)
-                            }
-                          >
-                            {machine.name}
-                          </button>
-                        </td>
-
-                        <td>{machine.areaName}</td>
-                        <td>{machine.systemName}</td>
-
-                        <td>
-                          <MachineBadge status={machine.status} />
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div id="machine-details" ref={machineDetailsRef}>
-              {selectedMachine && (
-                <section
-                  className="machine-details"
-                  aria-labelledby="machine-details-title"
-                >
-                  <div className="details-header">
-                    <h4 id="machine-details-title">
-                      {selectedMachine.name}
-                    </h4>
-
-                    <button
-                      type="button"
-                      className="close-details"
-                      onClick={() => setSelectedMachineId(null)}
-                    >
-                      Close details
-                    </button>
-                  </div>
-
-                  <dl className="details-grid">
-                    <div>
-                      <dt>Machine ID</dt>
-                      <dd>
-                        M-{String(selectedMachine.id).padStart(3, '0')}
-                      </dd>
-                    </div>
-
-                    <div>
-                      <dt>Production area</dt>
-                      <dd>{selectedMachine.areaName}</dd>
-                    </div>
-
-                    <div>
-                      <dt>Machine system</dt>
-                      <dd>{selectedMachine.systemName}</dd>
-                    </div>
-
-                    <div>
-                      <dt>Location</dt>
-                      <dd>
-                        {selectedMachine.location || 'Unspecified'}
-                      </dd>
-                    </div>
-
-                    <div>
-                      <dt>Status</dt>
-                      <dd>
-                        <MachineBadge status={selectedMachine.status} />
-                      </dd>
-                    </div>
-                  </dl>
-
-                  {can(role, 'changeMachineStatus') && <div className="status-editor">
-                    <div className="filter-field">
-                      <label htmlFor="update-machine-status">
-                        Change machine status
-                      </label>
-
-                      <select
-                        id="update-machine-status"
-                        value={selectedMachine.status}
-                        onChange={(event) => {
-                          const newStatus = event.target.value
-
-                          if (isOption(machineStatuses, newStatus)) {
-                            updateMachineStatus(
-                              selectedMachine.id,
-                              newStatus
-                            )
-                          }
-                        }}
-                      >
-                        <Options values={machineStatuses} />
-                      </select>
-                    </div>
-                  </div>}
-                </section>
-              )}
-            </div>
-          </section>
+          <EquipmentPage live={live} />
         ) : activePage === 'Issues' ? (
           <IssuesPage
-            data={data}
-            machines={allMachines}
-            reportIssue={(update) => changeData('reportIssue', update)}
-            manageIssues={can(role, 'manageIssues') ? (update) => changeData('manageIssues', update) : undefined}
+            machines={liveMachines}
+            canManage={can(role, 'manageIssues')}
           />
         ) : activePage === 'Maintenance' ? (
           <MaintenancePage
             data={data}
-            machines={allMachines}
+            machines={demoMachines}
             changeData={can(role, 'manageMaintenance') ? (update) => changeData('manageMaintenance', update) : undefined}
             today={today}
           />
@@ -515,7 +230,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
         ) : activePage === 'Administration' && can(role, 'administration') ? (
           <AdministrationPage
             data={data}
-            machines={allMachines}
+            machines={demoMachines}
             changeData={(update) => changeData('administration', update)}
           />
         ) : null}

@@ -13,12 +13,13 @@ builder.Services.AddOpenApi();
 // Register MySql DataSource
 builder.Services.AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!);
 builder.Services.AddScoped<IProductionArea, ProductionAreaRepository>();
+builder.Services.AddScoped<IIssueReport, IssueReportRepository>();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins("http://localhost:5174")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

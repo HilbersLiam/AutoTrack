@@ -1,6 +1,6 @@
-import { ScrollTable } from './EquipmentUi'
-import { reportBreakdown, reportCounts } from './frontendData'
-import type { DemoData } from './models'
+import { ScrollTable } from '../components/EquipmentUi'
+import { reportBreakdown, reportCounts } from '../frontendData'
+import type { DemoData } from '../models'
 
 export default function ReportsPage({ data, today }: { data: DemoData; today: string }) {
   const counts = reportCounts(data, today)

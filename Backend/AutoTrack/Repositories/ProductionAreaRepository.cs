@@ -23,7 +23,9 @@ public class ProductionAreaRepository : IProductionArea
                 pa.AreaName,
                 m.MachineID,
                 m.MachineName,
-                msh.Status AS CurrentStatus
+                ms.SystemName,
+                msh.Status AS CurrentStatus,
+                m.Location
 
             FROM ProductionArea pa
 
@@ -40,7 +42,7 @@ public class ProductionAreaRepository : IProductionArea
                     FROM MachineStatusHistory msh2
                     WHERE msh2.MachineID = m.MachineID
                     ORDER BY msh2.ChangedAt DESC,
-                             msh2.StatusHistoryID DESC
+                            msh2.StatusHistoryID DESC
                     LIMIT 1
                 )
 

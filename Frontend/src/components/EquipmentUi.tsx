@@ -1,5 +1,5 @@
 ﻿import type { ReactNode } from 'react'
-import type { LinkedMachine, MachineStatus } from './models'
+import type { LinkedMachine, MachineStatus } from '../models'
 
 const badgeClasses = {
   Operational: 'status-operational',
@@ -21,7 +21,14 @@ export function Options({ values }: { values: readonly string[] }) {
   return values.map((value) => <option key={value}>{value}</option>)
 }
 
-export function MachineOptions({ machines }: { machines: LinkedMachine[] }) {
+type MachineOption = {
+  id: number
+  name: string
+  areaName: string
+  systemName: string
+}
+
+export function MachineOptions({ machines }: { machines: MachineOption[] }) {
   return machines.map((machine) => (
     <option key={machine.id} value={machine.id}>
       {machine.areaName} / {machine.systemName} / {machine.name}
