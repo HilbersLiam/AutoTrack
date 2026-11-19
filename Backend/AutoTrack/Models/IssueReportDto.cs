@@ -8,6 +8,7 @@ public class IssueReportDto
     public int MachineID { get; set; }
     public string MachineName { get; set; } = string.Empty;
     public int ReportedByUserID { get; set; }
+    public string ReportedByName { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Priority { get; set; } = string.Empty;
     public string IssueStatus { get; set; } = string.Empty;

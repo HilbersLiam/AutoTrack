@@ -14,6 +14,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!);
 builder.Services.AddScoped<IProductionArea, ProductionAreaRepository>();
 builder.Services.AddScoped<IIssueReport, IssueReportRepository>();
+builder.Services.AddScoped<IMaintenanceTask, MaintenanceTaskRepository>();
 
 builder.Services.AddCors(options =>
 {

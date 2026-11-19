@@ -8,6 +8,7 @@ interface BackendIssueReportDto {
   machineName?: string
   reportedByUserId?: number
   reportedByUserID?: number
+  reportedByName?: string
   description: string
   priority: Priority
   issueStatus: IssueStatus
@@ -25,6 +26,8 @@ export interface CreateIssueReportPayload {
 
 export type ApiIssue = Issue & {
   machineName?: string
+  reportedByUserId?: number
+  reportedByName?: string
 }
 
 const API_BASE_URL = 'http://localhost:5091/api/IssueReport'
@@ -32,11 +35,14 @@ const API_BASE_URL = 'http://localhost:5091/api/IssueReport'
 function mapDtoToIssue(dto: BackendIssueReportDto): ApiIssue {
   const issueId = dto.issueId ?? dto.issueID ?? 0
   const machineId = dto.machineId ?? dto.machineID ?? 0
+  const reportedByUserId = dto.reportedByUserId ?? dto.reportedByUserID ?? 0
 
   return {
     id: String(issueId),
     machineId,
     machineName: dto.machineName,
+    reportedByUserId,
+    reportedByName: dto.reportedByName,
     description: dto.description,
     priority: dto.priority,
     status: dto.issueStatus,

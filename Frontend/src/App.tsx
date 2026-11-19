@@ -25,11 +25,12 @@ type Page = typeof pages[number]
 function App({ store }: { store: ReturnType<typeof loadDemo> }) {
   const [demoRole, setDemoRole] = useState<keyof typeof demoRoles>('normal')
   const role = demoRoles[demoRole]
+  const currentUserId = demoRole === 'admin' ? 2 : 1
   const [requestedPage, setActivePage] = useState<Page>('Overview')
   const canView = (page: Page) => page !== 'Administration' || can(role, 'administration')
   const activePage = canView(requestedPage) ? requestedPage : 'Overview'
 
-  // Existing demo data used by Maintenance, Reports, and Administration until migrated.
+  // Existing demo data used by Reports and Administration until migrated.
   const [data, setData] = useState(store.data)
   const [saveError, setSaveError] = useState(
     store.initialSaveFailed
@@ -89,7 +90,11 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
     return true
   }
 
-  const isLivePage = activePage === 'Overview' || activePage === 'Equipment' || activePage === 'Issues'
+  const isLivePage =
+    activePage === 'Overview' ||
+    activePage === 'Equipment' ||
+    activePage === 'Issues' ||
+    activePage === 'Maintenance'
 
   return (
     <div className="app-layout">
@@ -216,13 +221,14 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
         ) : activePage === 'Issues' ? (
           <IssuesPage
             machines={liveMachines}
+            currentUserId={currentUserId}
             canManage={can(role, 'manageIssues')}
           />
         ) : activePage === 'Maintenance' ? (
           <MaintenancePage
-            data={data}
-            machines={demoMachines}
-            changeData={can(role, 'manageMaintenance') ? (update) => changeData('manageMaintenance', update) : undefined}
+            machines={liveMachines}
+            currentUserId={currentUserId}
+            canManage={can(role, 'manageMaintenance')}
             today={today}
           />
         ) : activePage === 'Reports' ? (

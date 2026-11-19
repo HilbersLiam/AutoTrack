@@ -9,10 +9,11 @@ import type { IssueStatus, LinkedMachine } from '../models'
 
 type Props = {
   machines: LinkedMachine[]
+  currentUserId: number
   canManage?: boolean
 }
 
-export default function IssuesPage({ machines, canManage = true }: Props) {
+export default function IssuesPage({ machines, currentUserId, canManage = true }: Props) {
   const [issues, setIssues] = useState<ApiIssue[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('All')
@@ -72,7 +73,7 @@ export default function IssuesPage({ machines, canManage = true }: Props) {
     try {
       await createIssueReport({
         machineId,
-        reportedByUserId: 1, // Replace with logged-in user ID once auth is connected
+        reportedByUserId: currentUserId,
         description,
         priority,
         issueStatus: 'Open',
@@ -102,6 +103,8 @@ export default function IssuesPage({ machines, canManage = true }: Props) {
       const updatedIssue: ApiIssue = {
         ...changeIssueStatus(issue, status),
         machineName: issue.machineName,
+        reportedByUserId: issue.reportedByUserId,
+        reportedByName: issue.reportedByName,
       }
       setIssues((current) => upsert(current, updatedIssue))
       setNotice(`Issue updated to ${status}.`)
@@ -162,6 +165,7 @@ export default function IssuesPage({ machines, canManage = true }: Props) {
               <th scope="col">Problem</th>
               <th scope="col">Priority</th>
               <th scope="col">Status</th>
+              <th scope="col">Reported By</th>
               <th scope="col">Reported</th>
               {canManage && <th scope="col">Actions</th>}
             </tr>
@@ -169,14 +173,14 @@ export default function IssuesPage({ machines, canManage = true }: Props) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={canManage ? 6 : 5} className="empty-state">
+                <td colSpan={canManage ? 7 : 6} className="empty-state">
                   Loading issues...
                 </td>
               </tr>
             )}
             {!loading && visible.length === 0 && (
               <tr>
-                <td colSpan={canManage ? 6 : 5} className="empty-state">
+                <td colSpan={canManage ? 7 : 6} className="empty-state">
                   No issues to show.
                 </td>
               </tr>
@@ -205,6 +209,7 @@ export default function IssuesPage({ machines, canManage = true }: Props) {
                       {issue.status}
                     </span>
                   </td>
+                  <td>{issue.reportedByName || `User #${issue.reportedByUserId ?? '?'}`}</td>
                   <td>
                     <time dateTime={issue.createdAt}>{new Date(issue.createdAt).toLocaleString()}</time>
                   </td>

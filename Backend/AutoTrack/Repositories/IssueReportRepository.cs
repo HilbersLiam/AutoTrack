@@ -37,6 +37,7 @@ public class IssueReportRepository : IIssueReport
                 ir.MachineId AS MachineId,
                 m.MachineName,
                 ir.ReportedByUserId AS ReportedByUserId,
+                u.FullName AS ReportedByName,
                 ir.Description,
                 ir.Priority,
                 ir.IssueStatus,
@@ -44,6 +45,7 @@ public class IssueReportRepository : IIssueReport
                 ir.ResolvedAt
             FROM IssueReport ir
             INNER JOIN Machine m ON ir.MachineId = m.MachineId
+            INNER JOIN UserAccount u ON ir.ReportedByUserID = u.UserID
             ORDER BY ir.ReportedAt DESC;
             """;
 
@@ -63,7 +65,7 @@ public class IssueReportRepository : IIssueReport
                         WHEN @IssueStatus = 'Resolved' THEN NOW() 
                         ELSE NULL 
                     END
-                WHERE IssueID = @IssueId;
+                WHERE IssueId = @IssueId;
                 """;
 
             await connection.ExecuteAsync(sql, new
