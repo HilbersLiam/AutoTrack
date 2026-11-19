@@ -30,7 +30,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
   const canView = (page: Page) => page !== 'Administration' || can(role, 'administration')
   const activePage = canView(requestedPage) ? requestedPage : 'Overview'
 
-  // Existing demo data used by Reports and Administration until migrated.
+  // Existing demo data used by Administration until migrated.
   const [data, setData] = useState(store.data)
   const [saveError, setSaveError] = useState(
     store.initialSaveFailed
@@ -94,7 +94,8 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
     activePage === 'Overview' ||
     activePage === 'Equipment' ||
     activePage === 'Issues' ||
-    activePage === 'Maintenance'
+    activePage === 'Maintenance' ||
+    activePage === 'Reports'
 
   return (
     <div className="app-layout">
@@ -232,7 +233,7 @@ function App({ store }: { store: ReturnType<typeof loadDemo> }) {
             today={today}
           />
         ) : activePage === 'Reports' ? (
-          <ReportsPage data={data} today={today} />
+          <ReportsPage />
         ) : activePage === 'Administration' && can(role, 'administration') ? (
           <AdministrationPage
             data={data}
